@@ -3,55 +3,142 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Paranormal Intelligence Dashboard</title>
+  <title>Paranormal Intelligence Dashboard v7</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>
-    html, body { margin: 0; height: 100%; font-family: Arial, sans-serif; background: #0b1220; color: #e5e7eb; }
-    #app { display: grid; grid-template-columns: 390px 1fr; height: 100vh; }
-    #sidebar { padding: 16px; overflow-y: auto; background: linear-gradient(180deg,#111827 0%,#0f172a 100%); border-right: 1px solid rgba(255,255,255,0.08); }
+    :root {
+      --bg: #070b14;
+      --panel: rgba(12, 18, 34, 0.92);
+      --panel-2: rgba(255, 255, 255, 0.05);
+      --line: rgba(255,255,255,0.08);
+      --text: #e8eefc;
+      --muted: #96a3bf;
+      --glow: 0 0 0 1px rgba(255,255,255,0.06), 0 14px 40px rgba(0,0,0,0.35);
+      --bigfoot: #22c55e;
+      --haunted: #a855f7;
+      --ufo: #38bdf8;
+      --hotspot: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.10), transparent 24%),
+        radial-gradient(circle at top right, rgba(168,85,247,0.12), transparent 22%),
+        linear-gradient(180deg, #07101d 0%, #070b14 100%);
+      color: var(--text);
+      font-family: Inter, Arial, sans-serif;
+    }
+    #app { display: grid; grid-template-columns: 410px 1fr; height: 100vh; }
+    #sidebar {
+      padding: 18px;
+      overflow-y: auto;
+      background: linear-gradient(180deg, rgba(7,11,20,.96) 0%, rgba(10,16,30,.94) 100%);
+      border-right: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
     #map { height: 100vh; width: 100%; }
-    h1 { margin: 0 0 8px 0; font-size: 24px; }
-    .sub { color: #9ca3af; font-size: 13px; margin-bottom: 14px; }
-    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
-    .stats { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .stat { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 10px; }
-    .label { color: #9ca3af; font-size: 12px; margin-bottom: 4px; }
-    .value { font-size: 20px; font-weight: 700; }
-    label { display:block; margin-top: 10px; margin-bottom: 6px; font-size: 13px; color:#d1d5db; }
+    h1 { margin: 0 0 6px 0; font-size: 26px; letter-spacing: 0.2px; }
+    .sub { color: var(--muted); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--glow);
+    }
+    .stats { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; }
+    .value { font-size: 20px; font-weight: 800; }
+    label { display:block; margin-top: 10px; margin-bottom: 6px; font-size: 12px; color:#d8e2ff; text-transform: uppercase; letter-spacing:.08em; }
     input[type="text"], input[type="number"], select {
-      width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); color: white; outline: none;
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline: none;
     }
     select option { color: black; background: white; }
-    input[type="range"] { width: 100%; }
+    input[type="range"] { width: 100%; accent-color: var(--ufo); }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .checks { display:grid; gap: 6px; margin-top: 6px; }
-    .checks label { margin: 0; display:flex; align-items:center; gap:8px; font-size:13px; }
+    .checks label { margin: 0; font-size: 13px; display:flex; gap:8px; align-items:center; text-transform:none; letter-spacing:0; }
     button {
-      width: 100%; padding: 11px 12px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer;
-      margin-top: 10px; background: #e5e7eb; color: #111827;
+      width: 100%;
+      border: 0;
+      background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+      color: #0b1220;
+      font-weight: 800;
+      padding: 11px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 10px;
     }
     button.secondary {
-      background: rgba(255,255,255,0.08); color: #e5e7eb; border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid var(--line);
     }
-    button.small { width: auto; padding: 8px 12px; margin-top: 0; }
+    button.small { width:auto; margin-top:0; padding:8px 12px; }
     .range-row { display:flex; align-items:center; gap:10px; }
     .badge {
-      display:inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
-      background: rgba(255,255,255,0.08);
+      display:inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
     }
-    .legend-item { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:#d1d5db; }
-    .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-    .hint, .footer { font-size: 12px; color: #9ca3af; line-height: 1.45; margin-top: 8px; }
-    .popup-title { font-weight: 700; margin-bottom: 6px; font-size: 14px; }
-    .loading { color: #93c5fd; font-size: 13px; }
+    .legend-item, .hotspot-item {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:8px;
+      font-size:13px;
+      color:#d7e0fb;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px 10px;
+    }
+    .legend-left { display:flex; align-items:center; gap:8px; }
+    .dot {
+      width: 12px; height: 12px; border-radius: 50%; display:inline-block;
+      box-shadow: 0 0 14px rgba(255,255,255,0.15);
+    }
+    .hint, .footer, .loading {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+    .popup-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+    .hotspot-title { font-weight: 800; color: #fff; }
+    .icon-pin {
+      display:flex; align-items:center; justify-content:center;
+      width: 26px; height: 26px; border-radius: 999px;
+      border: 2px solid white;
+      box-shadow: 0 0 14px rgba(0,0,0,0.35), 0 0 14px rgba(255,255,255,0.08);
+      font-size: 14px;
+      backdrop-filter: blur(4px);
+    }
     a { color: #93c5fd; }
     @media (max-width: 980px) {
       #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-      #sidebar { max-height: 52vh; }
-      #map { height: 48vh; }
+      #sidebar { max-height: 56vh; }
+      #map { height: 44vh; }
     }
   </style>
 </head>
@@ -59,7 +146,7 @@
 <div id="app">
   <div id="sidebar">
     <h1>Paranormal Intelligence Dashboard</h1>
-    <div class="sub">Hostable static site version. Bigfoot, haunted places, and UFO sightings in one browser-based dashboard.</div>
+    <div class="sub">Dark paranormal theme, custom icons, heatmap layers, and mystery hotspot detection across Bigfoot, haunted places, and UFO sightings.</div>
 
     <div class="card">
       <div class="stats">
@@ -71,14 +158,13 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:700; margin-bottom:6px;">Timeline playback</div>
+      <div style="font-weight:800; margin-bottom:6px;">Timeline playback</div>
       <div class="range-row">
         <button id="playBtn" class="small">Play</button>
         <div class="badge" id="sliderLabel">All years</div>
       </div>
       <label for="yearSlider">Show records up to year</label>
       <input id="yearSlider" type="range" min="1800" max="2026" step="1" value="2026" />
-      <div class="hint">Playback accumulates records through time so you can watch clusters emerge.</div>
     </div>
 
     <div class="card">
@@ -104,8 +190,8 @@
 
       <label>Map mode</label>
       <div class="checks">
-        <label><input type="radio" name="viewmode" value="clusters" checked /> Clustered markers</label>
-        <label><input type="radio" name="viewmode" value="heat" /> Heat layer</label>
+        <label><input type="radio" name="viewmode" value="clusters" checked /> Custom icon clusters</label>
+        <label><input type="radio" name="viewmode" value="heat" /> Paranormal heatmap</label>
       </div>
 
       <label for="locationTypeSelect">Location type</label>
@@ -114,7 +200,10 @@
       <label for="shapeInput">UFO shape</label>
       <input id="shapeInput" type="text" placeholder="triangle, disk, light..." />
 
-      <div class="checks"><label><input type="checkbox" id="fitBounds" checked /> Auto-fit map to filtered results</label></div>
+      <div class="checks">
+        <label><input type="checkbox" id="fitBounds" checked /> Auto-fit map to filtered results</label>
+        <label><input type="checkbox" id="showHotspots" checked /> Show mystery hotspots</label>
+      </div>
 
       <button id="applyBtn">Apply filters</button>
       <button id="resetBtn" class="secondary">Reset filters</button>
@@ -123,10 +212,17 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:700; margin-bottom:6px;">Legend</div>
-      <div class="legend-item"><span class="dot" style="background:#16a34a;"></span> Bigfoot</div>
-      <div class="legend-item"><span class="dot" style="background:#9333ea;"></span> Haunted place</div>
-      <div class="legend-item"><span class="dot" style="background:#2563eb;"></span> UFO</div>
+      <div style="font-weight:800; margin-bottom:6px;">Legend</div>
+      <div class="legend-item"><div class="legend-left"><span class="dot" style="background:var(--bigfoot)"></span><span>🦶 Bigfoot</span></div><span class="badge">green</span></div>
+      <div class="legend-item"><div class="legend-left"><span class="dot" style="background:var(--haunted)"></span><span>👻 Haunted place</span></div><span class="badge">purple</span></div>
+      <div class="legend-item"><div class="legend-left"><span class="dot" style="background:var(--ufo)"></span><span>🛸 UFO</span></div><span class="badge">blue</span></div>
+      <div class="legend-item"><div class="legend-left"><span class="dot" style="background:var(--hotspot)"></span><span>✨ Mystery hotspot</span></div><span class="badge">mixed</span></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800; margin-bottom:6px;">Mystery hotspots</div>
+      <div id="hotspotList"></div>
+      <div class="hint">Hotspots are auto-detected using a simple geographic grid where multiple paranormal records cluster together.</div>
     </div>
 
     <div class="footer">
@@ -145,6 +241,7 @@
 let DATA = [];
 let filtered = [];
 let heatLayer = null;
+let hotspotLayer = null;
 let playTimer = null;
 const CURRENT_YEAR = 2026;
 
@@ -158,7 +255,10 @@ const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}
 L.control.layers({"Light": light, "Dark": dark}, {}, {collapsed: true}).addTo(map);
 
 const clusterLayer = L.markerClusterGroup({
-  chunkedLoading: true, spiderfyOnMaxZoom: true, showCoverageOnHover: false, maxClusterRadius: 45
+  chunkedLoading: true,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  maxClusterRadius: 42
 });
 map.addLayer(clusterLayer);
 
@@ -175,17 +275,26 @@ function toYear(v) {
   return Number.isNaN(n) ? null : n;
 }
 function phenomenonColor(p) {
-  if (p === 'bigfoot') return '#16a34a';
-  if (p === 'haunted_place') return '#9333ea';
-  if (p === 'ufo') return '#2563eb';
+  if (p === 'bigfoot') return '#22c55e';
+  if (p === 'haunted_place') return '#a855f7';
+  if (p === 'ufo') return '#38bdf8';
   return '#6b7280';
+}
+function phenomenonEmoji(p) {
+  if (p === 'bigfoot') return '🦶';
+  if (p === 'haunted_place') return '👻';
+  if (p === 'ufo') return '🛸';
+  return '❓';
 }
 function iconFor(rec) {
   const c = phenomenonColor(rec.phenomenon);
+  const emoji = phenomenonEmoji(rec.phenomenon);
   return L.divIcon({
     className: '',
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.45);"></div>`,
-    iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-7]
+    html: `<div class="icon-pin" style="background:${c};">${emoji}</div>`,
+    iconSize: [26,26],
+    iconAnchor: [13,13],
+    popupAnchor: [0,-10]
   });
 }
 function popupHtml(r) {
@@ -198,7 +307,7 @@ function popupHtml(r) {
     <div><strong>Year:</strong> ${r.year ?? 'Unknown'}</div>
     ${r.location_type ? `<div><strong>Location type:</strong> ${esc(r.location_type)}</div>` : ''}
     ${r.classification ? `<div><strong>Classification:</strong> ${esc(r.classification)}</div>` : ''}
-    ${r.summary ? `<div style="margin-top:6px;"><strong>Summary:</strong> ${esc(r.summary).slice(0, 450)}${r.summary.length > 450 ? '…' : ''}</div>` : ''}
+    ${r.summary ? `<div style="margin-top:6px;"><strong>Summary:</strong> ${esc(r.summary).slice(0, 420)}${r.summary.length > 420 ? '…' : ''}</div>` : ''}
     ${link}
   `;
 }
@@ -210,7 +319,7 @@ function buildPhenomenonChecks() {
   box.innerHTML = '';
   uniqueSorted(DATA.map(d => d.phenomenon)).forEach(p => {
     const wrap = document.createElement('label');
-    wrap.innerHTML = `<input type="checkbox" value="${esc(p)}" checked /> ${esc(p)}`;
+    wrap.innerHTML = `<input type="checkbox" value="${esc(p)}" checked /> ${phenomenonEmoji(p)} ${esc(p)}`;
     box.appendChild(wrap);
   });
 }
@@ -253,6 +362,60 @@ function updateStats() {
   document.getElementById('playbackYear').textContent = cap >= CURRENT_YEAR ? 'All' : String(cap);
   document.getElementById('sliderLabel').textContent = cap >= CURRENT_YEAR ? 'All years' : `Up to ${cap}`;
 }
+function getHotspots(rows) {
+  const grid = new Map();
+  const cellSize = 1.5;
+  rows.forEach(r => {
+    const latKey = Math.round(r.lat / cellSize) * cellSize;
+    const lngKey = Math.round(r.lng / cellSize) * cellSize;
+    const key = `${latKey}|${lngKey}`;
+    if (!grid.has(key)) {
+      grid.set(key, {lat: latKey, lng: lngKey, count: 0, phenomena: new Set(), samples: []});
+    }
+    const g = grid.get(key);
+    g.count += 1;
+    g.phenomena.add(r.phenomenon);
+    if (g.samples.length < 3) g.samples.push(r.title || r.id);
+  });
+  return [...grid.values()]
+    .filter(g => g.count >= 12)
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 20);
+}
+function renderHotspots() {
+  if (hotspotLayer) {
+    map.removeLayer(hotspotLayer);
+    hotspotLayer = null;
+  }
+  const list = document.getElementById('hotspotList');
+  if (!document.getElementById('showHotspots').checked) {
+    list.innerHTML = '<div class="hint">Mystery hotspots hidden.</div>';
+    return;
+  }
+
+  const hotspots = getHotspots(filtered);
+  list.innerHTML = hotspots.length
+    ? hotspots.slice(0, 8).map((h, i) => {
+        const mix = [...h.phenomena].map(p => phenomenonEmoji(p)).join(' ');
+        return `<div class="hotspot-item"><div><div class="hotspot-title">#${i+1} ${mix}</div><div class="hint">${h.samples[0] || 'Cluster area'}</div></div><div class="badge">${h.count}</div></div>`;
+      }).join('')
+    : '<div class="hint">No major hotspots for current filters.</div>';
+
+  hotspotLayer = L.layerGroup(
+    hotspots.map(h => L.circleMarker([h.lat, h.lng], {
+      radius: Math.max(10, Math.min(22, h.count / 4)),
+      color: '#f59e0b',
+      fillColor: '#f59e0b',
+      fillOpacity: 0.15,
+      weight: 2
+    }).bindPopup(
+      `<div class="popup-title">Mystery hotspot</div>
+       <div><strong>Records:</strong> ${h.count}</div>
+       <div><strong>Phenomena:</strong> ${[...h.phenomena].join(', ')}</div>
+       <div><strong>Approx area:</strong> ${h.lat.toFixed(2)}, ${h.lng.toFixed(2)}</div>`
+    ))
+  ).addTo(map);
+}
 function renderLayers() {
   clusterLayer.clearLayers();
   if (heatLayer) {
@@ -260,6 +423,7 @@ function renderLayers() {
     heatLayer = null;
   }
   const mode = document.querySelector('input[name="viewmode"]:checked').value;
+
   if (mode === 'clusters') {
     filtered.forEach(r => {
       const marker = L.marker([r.lat, r.lng], { icon: iconFor(r) });
@@ -269,9 +433,12 @@ function renderLayers() {
     if (!map.hasLayer(clusterLayer)) map.addLayer(clusterLayer);
   } else {
     if (map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
-    const heatPoints = filtered.map(r => [r.lat, r.lng, 0.45]);
-    heatLayer = L.heatLayer(heatPoints, { radius: 20, blur: 14, maxZoom: 8 }).addTo(map);
+    const heatPoints = filtered.map(r => [r.lat, r.lng, r.phenomenon === 'ufo' ? 0.35 : 0.65]);
+    heatLayer = L.heatLayer(heatPoints, { radius: 18, blur: 14, maxZoom: 9 }).addTo(map);
   }
+
+  renderHotspots();
+
   if (document.getElementById('fitBounds').checked && filtered.length) {
     const bounds = L.latLngBounds(filtered.map(r => [r.lat, r.lng]));
     map.fitBounds(bounds.pad(0.08));
@@ -324,6 +491,7 @@ function resetFilters() {
   document.querySelectorAll('#phenomChecks input[type="checkbox"]').forEach(el => el.checked = true);
   document.querySelector('input[name="viewmode"][value="clusters"]').checked = true;
   document.getElementById('fitBounds').checked = true;
+  document.getElementById('showHotspots').checked = true;
   document.getElementById('yearSlider').value = CURRENT_YEAR;
   applyFilters();
   map.setView([39.5, -98.35], 4);
@@ -358,7 +526,6 @@ function togglePlayback() {
   if (playTimer) stopPlayback();
   else startPlayback();
 }
-
 function initFromCsv(rows) {
   DATA = rows
     .map(r => ({
@@ -408,6 +575,7 @@ document.getElementById('citySelect').addEventListener('change', applyFilters);
 document.getElementById('locationTypeSelect').addEventListener('change', applyFilters);
 document.getElementById('shapeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilters(); });
 document.getElementById('searchBox').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilters(); });
+document.getElementById('showHotspots').addEventListener('change', applyFilters);
 document.querySelectorAll('input[name="viewmode"]').forEach(el => el.addEventListener('change', applyFilters));
 
 Papa.parse('paranormal_master_dataset_v4_with_ufo.csv', {
