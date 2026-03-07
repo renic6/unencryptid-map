@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Paranormal Intelligence Dashboard v10</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+:root {
+  --panel: rgba(12,18,34,.94); --line: rgba(255,255,255,.08); --text:#e8eefc; --muted:#96a3bf;
+  --bigfoot:#22c55e; --haunted:#a855f7; --ufo:#38bdf8; --park:#84cc16; --forest:#16a34a; --base:#ef4444; --cave:#f97316; --river:#60a5fa;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; color:var(--text); font-family:Inter,Arial,sans-serif; background:linear-gradient(180deg,#07101d 0%,#070b14 100%); }
+#app { display:grid; grid-template-columns:420px 1fr; height:100vh; }
+#sidebar { padding:18px; overflow-y:auto; background:linear-gradient(180deg, rgba(7,11,20,.96), rgba(10,16,30,.95)); border-right:1px solid var(--line); }
+#map { height:100vh; width:100%; }
+h1 { margin:0 0 6px 0; font-size:26px; }
+.sub,.hint,.footer,.loading { color:var(--muted); font-size:12px; line-height:1.45; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:14px; box-shadow:0 14px 40px rgba(0,0,0,.35); }
+.stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.stat { background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:14px; padding:10px; }
+.label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+.value { font-size:20px; font-weight:800; }
+label { display:block; margin-top:10px; margin-bottom:6px; font-size:12px; color:#d8e2ff; text-transform:uppercase; letter-spacing:.08em; }
+input[type="text"], input[type="number"], select {
+ width:100%; border:1px solid var(--line); background:rgba(255,255,255,.05); color:var(--text); padding:10px 12px; border-radius:12px; outline:none;
+}
+select option { color:black; background:white; }
+.checks { display:grid; gap:6px; margin-top:6px; }
+.checks label { margin:0; font-size:13px; display:flex; gap:8px; align-items:center; text-transform:none; letter-spacing:0; }
+button { width:100%; border:0; background:linear-gradient(180deg,#dbeafe 0%, #bfdbfe 100%); color:#0b1220; font-weight:800; padding:11px 12px; border-radius:12px; cursor:pointer; margin-top:10px; }
+button.secondary { background:rgba(255,255,255,.05); color:var(--text); border:1px solid var(--line); }
+.legend-item { display:flex; justify-content:space-between; gap:10px; margin-top:8px; font-size:13px; color:#d7e0fb; background:rgba(255,255,255,.035); border:1px solid var(--line); border-radius:12px; padding:9px 10px; }
+.legend-left { display:flex; align-items:center; gap:8px; }
+.badge { display:inline-block; padding:4px 9px; border-radius:999px; font-size:11px; font-weight:800; background:rgba(255,255,255,.06); border:1px solid var(--line); }
+.icon-pin { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:999px; border:2px solid white; font-size:14px; box-shadow:0 0 14px rgba(0,0,0,.35); }
+.popup-title { font-size:14px; font-weight:800; margin-bottom:6px; }
+a { color:#93c5fd; }
+@media (max-width:980px) { #app { grid-template-columns:1fr; grid-template-rows:auto 1fr; } #sidebar { max-height:56vh; } #map { height:44vh; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1>Paranormal Intelligence Dashboard</h1>
+    <div class="sub">Improved version with zoom-dependent rendering: heatmap when far out, clusters mid-zoom, individual icons up close. Defaults to Bigfoot only.</div>
+
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><div class="label">Visible records</div><div class="value" id="visibleCount">0</div></div>
+        <div class="stat"><div class="label">Total loaded</div><div class="value" id="totalCount">0</div></div>
+        <div class="stat"><div class="label">Visible year range</div><div class="value" id="yearRange">—</div></div>
+        <div class="stat"><div class="label">Phenomena selected</div><div class="value" id="phenCount">0</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="searchBox">Search title, summary, state, county, city, or ID</label>
+      <input id="searchBox" type="text" placeholder="e.g. Stanley, Arizona, BFRO-245" />
+      <label for="minYear">Min year</label>
+      <input id="minYear" type="number" placeholder="1900" />
+      <label for="maxYear">Max year</label>
+      <input id="maxYear" type="number" placeholder="2026" />
+
+      <label for="stateSelect">State / province</label>
+      <select id="stateSelect"></select>
+      <label for="countySelect">County</label>
+      <select id="countySelect"></select>
+      <label for="citySelect">City</label>
+      <select id="citySelect"></select>
+
+      <label>Phenomenon layers</label>
+      <div class="checks" id="phenomChecks"></div>
+
+      <label>Reference overlays</label>
+      <div class="checks">
+        <label><input type="checkbox" id="toggleParks" checked /> National parks</label>
+        <label><input type="checkbox" id="toggleForests" checked /> National forests</label>
+        <label><input type="checkbox" id="toggleBases" /> Military bases</label>
+        <label><input type="checkbox" id="toggleCaves" /> Cave systems</label>
+        <label><input type="checkbox" id="toggleRivers" checked /> River / mountain corridors</label>
+      </div>
+
+      <label>Map mode</label>
+      <div class="checks">
+        <label><input type="radio" name="viewmode" value="clusters" checked /> Auto mode (heat → clusters → icons by zoom)</label>
+        <label><input type="radio" name="viewmode" value="heat" /> Force heatmap</label>
+      </div>
+
+      <label for="locationTypeSelect">Location type</label>
+      <select id="locationTypeSelect"></select>
+      <label for="shapeInput">UFO shape</label>
+      <input id="shapeInput" type="text" placeholder="triangle, disk, light..." />
+      <div class="checks"><label><input type="checkbox" id="fitBounds" checked /> Auto-fit map to filtered results</label></div>
+
+      <button id="applyBtn">Apply filters</button>
+      <button id="resetBtn" class="secondary">Reset filters</button>
+      <div id="loading" class="loading">Loading data…</div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800; margin-bottom:6px;">Legend</div>
+      <div class="legend-item"><div class="legend-left"><div class="icon-pin" style="background:var(--bigfoot)">🦶</div><span>Bigfoot</span></div><span class="badge">map icon</span></div>
+      <div class="legend-item"><div class="legend-left"><div class="icon-pin" style="background:var(--haunted)">👻</div><span>Haunted</span></div><span class="badge">map icon</span></div>
+      <div class="legend-item"><div class="legend-left"><div class="icon-pin" style="background:var(--ufo)">🛸</div><span>UFO</span></div><span class="badge">map icon</span></div>
+      <div class="legend-item"><div class="legend-left"><span style="color:var(--park)">●</span><span>🏞 Park</span></div><span class="badge">overlay</span></div>
+      <div class="legend-item"><div class="legend-left"><span style="color:var(--forest)">●</span><span>🌲 Forest</span></div><span class="badge">overlay</span></div>
+      <div class="legend-item"><div class="legend-left"><span style="color:var(--base)">●</span><span>🪖 Base</span></div><span class="badge">overlay</span></div>
+      <div class="legend-item"><div class="legend-left"><span style="color:var(--cave)">●</span><span>🕳 Cave</span></div><span class="badge">overlay</span></div>
+      <div class="legend-item"><div class="legend-left"><span style="color:var(--river)">━</span><span>🌊 Corridor</span></div><span class="badge">overlay</span></div>
+    </div>
+
+    <div class="footer">Deploy this folder to GitHub Pages, Netlify, Vercel static hosting, or any plain web server.</div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script>
+let DATA = [];
+let filtered = [];
+let heatLayer = null;
+const CURRENT_YEAR = 2026;
+const OVERLAYS = {
+  parks: [{"name": "Olympic National Park", "lat": 47.8021, "lng": -123.6044}, {"name": "Mount Rainier National Park", "lat": 46.8523, "lng": -121.7603}, {"name": "North Cascades National Park", "lat": 48.7718, "lng": -121.2985}, {"name": "Crater Lake National Park", "lat": 42.9446, "lng": -122.109}, {"name": "Redwood National Park", "lat": 41.2132, "lng": -124.0046}, {"name": "Yosemite National Park", "lat": 37.8651, "lng": -119.5383}, {"name": "Sequoia National Park", "lat": 36.4864, "lng": -118.5658}, {"name": "Great Smoky Mountains National Park", "lat": 35.6532, "lng": -83.507}, {"name": "Shenandoah National Park", "lat": 38.2928, "lng": -78.6796}, {"name": "Big Bend National Park", "lat": 29.1275, "lng": -103.2425}],
+  forests: [{"name": "Olympic National Forest", "lat": 47.7511, "lng": -123.7494}, {"name": "Gifford Pinchot National Forest", "lat": 46.354, "lng": -121.941}, {"name": "Mount Hood National Forest", "lat": 45.3735, "lng": -121.6959}, {"name": "Shasta-Trinity National Forest", "lat": 41.234, "lng": -122.4986}, {"name": "Pisgah National Forest", "lat": 35.7572, "lng": -82.2771}, {"name": "George Washington National Forest", "lat": 38.2918, "lng": -79.2478}, {"name": "Daniel Boone National Forest", "lat": 37.1411, "lng": -84.2816}, {"name": "Allegheny National Forest", "lat": 41.649, "lng": -79.0111}],
+  bases: [{"name": "Area 51 / Groom Lake", "lat": 37.235, "lng": -115.8111}, {"name": "Wright-Patterson AFB", "lat": 39.8261, "lng": -84.0483}, {"name": "Edwards AFB", "lat": 34.9054, "lng": -117.883}, {"name": "Nellis AFB", "lat": 36.2362, "lng": -115.0343}, {"name": "Fort Bragg", "lat": 35.1415, "lng": -79.006}, {"name": "Joint Base Lewis-McChord", "lat": 47.1009, "lng": -122.5844}, {"name": "Dugway Proving Ground", "lat": 40.1996, "lng": -112.9373}],
+  caves: [{"name": "Mammoth Cave", "lat": 37.1869, "lng": -86.1014}, {"name": "Lava Beds Cave Area", "lat": 41.7168, "lng": -121.5079}, {"name": "Carlsbad Caverns", "lat": 32.1479, "lng": -104.5567}, {"name": "Wind Cave", "lat": 43.5688, "lng": -103.483}, {"name": "Blanchard Springs Caverns", "lat": 35.9659, "lng": -92.1835}, {"name": "Cumberland Caverns", "lat": 35.6331, "lng": -85.7078}],
+  rivers: [{"name": "Columbia River Corridor", "points": [[45.66, -121.9], [45.69, -121.1], [45.7, -120.3], [45.72, -119.6], [45.8, -118.6], [46.0, -117.3]]}, {"name": "Snake River Corridor", "points": [[43.6, -116.2], [43.5, -115.0], [43.4, -113.5], [43.6, -112.3], [43.8, -111.5]]}, {"name": "Mississippi River Corridor", "points": [[47.25, -95.2], [44.95, -93.1], [41.5, -90.6], [38.6, -90.2], [35.1, -90.0], [29.95, -90.07]]}, {"name": "Appalachian Spine", "points": [[34.8, -84.3], [35.7, -83.5], [36.6, -82.3], [37.5, -81.3], [38.4, -79.7], [39.2, -78.3], [40.0, -77.3]]}]
+};
+const overlayGroups = {
+  parks: L.layerGroup(), forests: L.layerGroup(), bases: L.layerGroup(), caves: L.layerGroup(), rivers: L.layerGroup()
+};
+const map = L.map('map', { preferCanvas: true }).setView([39.5, -98.35], 4);
+const light = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap & CARTO' });
+L.control.layers({"Light": light, "Dark": dark}, {}, {collapsed: true}).addTo(map);
+const clusterLayer = L.markerClusterGroup({ chunkedLoading: true, spiderfyOnMaxZoom: true, showCoverageOnHover: false, maxClusterRadius: 42 });
+const markerLayer = L.layerGroup();
+map.addLayer(clusterLayer);
+
+function esc(str) {
+  return String(str || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+}
+function cleanVal(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  return (s.toLowerCase() === 'nan') ? '' : s;
+}
+function toYear(v) {
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) ? null : n;
+}
+function phenomenonColor(p) {
+  if (p === 'bigfoot') return '#22c55e';
+  if (p === 'haunted_place') return '#a855f7';
+  if (p === 'ufo') return '#38bdf8';
+  return '#6b7280';
+}
+function phenomenonEmoji(p) {
+  if (p === 'bigfoot') return '🦶';
+  if (p === 'haunted_place') return '👻';
+  if (p === 'ufo') return '🛸';
+  return '❓';
+}
+function iconFor(rec) {
+  const c = phenomenonColor(rec.phenomenon);
+  const emoji = phenomenonEmoji(rec.phenomenon);
+  return L.divIcon({
+    className: '',
+    html: `<div class="icon-pin" style="background:${c};">${emoji}</div>`,
+    iconSize: [26,26], iconAnchor: [13,13], popupAnchor: [0,-10]
+  });
+}
+function popupHtml(r) {
+  const where = [r.city, r.county, r.state].filter(Boolean).join(', ');
+  const link = r.source_url ? `<div style="margin-top:8px;"><a href="${r.source_url}" target="_blank" rel="noopener">Open source</a></div>` : '';
+  return `
+    <div class="popup-title">${esc(r.title || r.id)}</div>
+    <div><strong>Type:</strong> ${esc(r.phenomenon)}</div>
+    <div><strong>Location:</strong> ${esc(where || r.country || 'Unknown')}</div>
+    <div><strong>Year:</strong> ${r.year ?? 'Unknown'}</div>
+    ${r.location_type ? `<div><strong>Location type:</strong> ${esc(r.location_type)}</div>` : ''}
+    ${r.classification ? `<div><strong>Classification:</strong> ${esc(r.classification)}</div>` : ''}
+    ${r.summary ? `<div style="margin-top:6px;"><strong>Summary:</strong> ${esc(r.summary).slice(0, 420)}${r.summary.length > 420 ? '…' : ''}</div>` : ''}
+    ${link}
+  `;
+}
+function uniqueSorted(arr) {
+  return [...new Set(arr.filter(x => x !== '' && x != null))].sort((a,b) => String(a).localeCompare(String(b)));
+}
+function buildPhenomenonChecks() {
+  const box = document.getElementById('phenomChecks');
+  box.innerHTML = '';
+  const values = uniqueSorted(DATA.map(d => d.phenomenon));
+  document.getElementById('phenCount').textContent = values.length;
+  values.forEach(p => {
+    const checked = p === 'bigfoot' ? 'checked' : '';
+    const wrap = document.createElement('label');
+    wrap.innerHTML = `<input type="checkbox" value="${esc(p)}" ${checked} /> ${phenomenonEmoji(p)} ${esc(p)}`;
+    box.appendChild(wrap);
+  });
+}
+function updateStateSelect() {
+  const sel = document.getElementById('stateSelect');
+  const states = uniqueSorted(DATA.map(d => d.state));
+  sel.innerHTML = '<option value="">All states / provinces</option>' + states.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+}
+function updateCountySelect() {
+  const state = document.getElementById('stateSelect').value;
+  const counties = uniqueSorted(DATA.filter(d => !state || d.state === state).map(d => d.county));
+  const sel = document.getElementById('countySelect');
+  sel.innerHTML = '<option value="">All counties</option>' + counties.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+function updateCitySelect() {
+  const state = document.getElementById('stateSelect').value;
+  const county = document.getElementById('countySelect').value;
+  const cities = uniqueSorted(DATA.filter(d => (!state || d.state === state) && (!county || d.county === county)).map(d => d.city));
+  const sel = document.getElementById('citySelect');
+  sel.innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+function updateLocationTypeSelect() {
+  const sel = document.getElementById('locationTypeSelect');
+  const types = uniqueSorted(DATA.map(d => d.location_type));
+  sel.innerHTML = '<option value="">All location types</option>' + types.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+}
+function getSelectedPhenomena() {
+  return [...document.querySelectorAll('#phenomChecks input[type="checkbox"]:checked')].map(el => el.value);
+}
+function updateStats() {
+  document.getElementById('visibleCount').textContent = filtered.length.toLocaleString();
+  document.getElementById('totalCount').textContent = DATA.length.toLocaleString();
+  const years = filtered.map(d => d.year).filter(y => Number.isInteger(y) && y <= CURRENT_YEAR);
+  document.getElementById('yearRange').textContent = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '—';
+}
+function buildOverlayGroups() {
+  overlayGroups.parks.clearLayers();
+  OVERLAYS.parks.forEach(p => overlayGroups.parks.addLayer(L.circleMarker([p.lat,p.lng], {radius:6,color:'#84cc16',fillColor:'#84cc16',fillOpacity:.9}).bindPopup(`<div class="popup-title">🏞 ${p.name}</div>`)));
+  overlayGroups.forests.clearLayers();
+  OVERLAYS.forests.forEach(p => overlayGroups.forests.addLayer(L.circleMarker([p.lat,p.lng], {radius:6,color:'#16a34a',fillColor:'#16a34a',fillOpacity:.9}).bindPopup(`<div class="popup-title">🌲 ${p.name}</div>`)));
+  overlayGroups.bases.clearLayers();
+  OVERLAYS.bases.forEach(p => overlayGroups.bases.addLayer(L.circleMarker([p.lat,p.lng], {radius:6,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9}).bindPopup(`<div class="popup-title">🪖 ${p.name}</div>`)));
+  overlayGroups.caves.clearLayers();
+  OVERLAYS.caves.forEach(p => overlayGroups.caves.addLayer(L.circleMarker([p.lat,p.lng], {radius:6,color:'#f97316',fillColor:'#f97316',fillOpacity:.9}).bindPopup(`<div class="popup-title">🕳 ${p.name}</div>`)));
+  overlayGroups.rivers.clearLayers();
+  OVERLAYS.rivers.forEach(p => overlayGroups.rivers.addLayer(L.polyline(p.points, {color:'#60a5fa',weight:3,opacity:.75}).bindPopup(`<div class="popup-title">🌊 ${p.name}</div>`)));
+}
+function syncOverlays() {
+  const toggles = {
+    parks: document.getElementById('toggleParks').checked,
+    forests: document.getElementById('toggleForests').checked,
+    bases: document.getElementById('toggleBases').checked,
+    caves: document.getElementById('toggleCaves').checked,
+    rivers: document.getElementById('toggleRivers').checked
+  };
+  Object.entries(overlayGroups).forEach(([key, group]) => {
+    if (toggles[key]) {
+      if (!map.hasLayer(group)) group.addTo(map);
+    } else {
+      if (map.hasLayer(group)) map.removeLayer(group);
+    }
+  });
+}
+function renderLayers() {
+  clusterLayer.clearLayers();
+  markerLayer.clearLayers();
+  if (map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
+  if (map.hasLayer(markerLayer)) map.removeLayer(markerLayer);
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+
+  const mode = document.querySelector('input[name="viewmode"]:checked').value;
+  const zoom = map.getZoom();
+
+  // Better system:
+  // zoom <= 5 => heatmap
+  // zoom 6-8 => clusters
+  // zoom >= 9 => individual icons
+  const effectiveMode = (mode === 'heat') ? 'heat' : (zoom <= 5 ? 'heat' : (zoom <= 8 ? 'clusters' : 'markers'));
+
+  if (effectiveMode === 'heat') {
+    const heatPoints = filtered.map(r => [r.lat, r.lng, r.phenomenon === 'ufo' ? 0.35 : 0.65]);
+    heatLayer = L.heatLayer(heatPoints, { radius: 18, blur: 14, maxZoom: 9 }).addTo(map);
+  } else if (effectiveMode === 'clusters') {
+    filtered.forEach(r => {
+      const marker = L.marker([r.lat, r.lng], { icon: iconFor(r) });
+      marker.bindPopup(popupHtml(r), { maxWidth: 360 });
+      clusterLayer.addLayer(marker);
+    });
+    map.addLayer(clusterLayer);
+  } else {
+    filtered.forEach(r => {
+      const marker = L.marker([r.lat, r.lng], { icon: iconFor(r) });
+      marker.bindPopup(popupHtml(r), { maxWidth: 360 });
+      markerLayer.addLayer(marker);
+    });
+    map.addLayer(markerLayer);
+  }
+
+  syncOverlays();
+  if (document.getElementById('fitBounds').checked && filtered.length) {
+    const bounds = L.latLngBounds(filtered.map(r => [r.lat, r.lng]));
+    map.fitBounds(bounds.pad(0.08));
+  }
+}
+function applyFilters() {
+  const term = cleanVal(document.getElementById('searchBox').value).toLowerCase();
+  const minYear = toYear(document.getElementById('minYear').value);
+  const maxYear = toYear(document.getElementById('maxYear').value);
+  const state = cleanVal(document.getElementById('stateSelect').value);
+  const county = cleanVal(document.getElementById('countySelect').value);
+  const city = cleanVal(document.getElementById('citySelect').value);
+  const locType = cleanVal(document.getElementById('locationTypeSelect').value);
+  const shape = cleanVal(document.getElementById('shapeInput').value).toLowerCase();
+  const selectedPhenomena = new Set(getSelectedPhenomena());
+
+  filtered = DATA.filter(r => {
+    if (!selectedPhenomena.has(r.phenomenon)) return false;
+    if (state && r.state !== state) return false;
+    if (county && r.county !== county) return false;
+    if (city && r.city !== city) return false;
+    if (locType && r.location_type !== locType) return false;
+    if (shape && !(r.classification || '').toLowerCase().includes(shape)) return false;
+    if (minYear !== null && (!Number.isInteger(r.year) || r.year < minYear)) return false;
+    if (maxYear !== null && (!Number.isInteger(r.year) || r.year > maxYear)) return false;
+    if (term) {
+      const hay = `${r.id} ${r.title} ${r.summary} ${r.state} ${r.county} ${r.city}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+
+  updateStats();
+  renderLayers();
+}
+function resetFilters() {
+  document.getElementById('searchBox').value = '';
+  document.getElementById('minYear').value = '';
+  document.getElementById('maxYear').value = '';
+  document.getElementById('stateSelect').value = '';
+  updateCountySelect();
+  document.getElementById('countySelect').value = '';
+  updateCitySelect();
+  document.getElementById('citySelect').value = '';
+  document.getElementById('locationTypeSelect').value = '';
+  document.getElementById('shapeInput').value = '';
+  document.querySelectorAll('#phenomChecks input[type="checkbox"]').forEach(el => el.checked = (el.value === 'bigfoot'));
+  document.querySelector('input[name="viewmode"][value="clusters"]').checked = true;
+  document.getElementById('fitBounds').checked = true;
+  document.getElementById('toggleParks').checked = true;
+  document.getElementById('toggleForests').checked = true;
+  document.getElementById('toggleBases').checked = false;
+  document.getElementById('toggleCaves').checked = false;
+  document.getElementById('toggleRivers').checked = true;
+  applyFilters();
+  map.setView([39.5, -98.35], 4);
+}
+function initFromCsv(rows) {
+  DATA = rows.map(r => ({
+    id: cleanVal(r.record_id),
+    phenomenon: cleanVal(r.phenomenon_type),
+    title: cleanVal(r.title),
+    summary: cleanVal(r.summary),
+    state: cleanVal(r.state),
+    county: cleanVal(r.county),
+    city: cleanVal(r.city),
+    country: cleanVal(r.country),
+    lat: Number(r.latitude),
+    lng: Number(r.longitude),
+    year: toYear(r.year),
+    location_type: cleanVal(r.location_type),
+    classification: cleanVal(r.classification),
+    source_url: cleanVal(r.source_url)
+  })).filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+
+  buildPhenomenonChecks();
+  updateStateSelect();
+  updateCountySelect();
+  updateCitySelect();
+  updateLocationTypeSelect();
+  buildOverlayGroups();
+  document.getElementById('loading').textContent = '';
+  applyFilters();
+}
+document.getElementById('applyBtn').addEventListener('click', applyFilters);
+document.getElementById('resetBtn').addEventListener('click', resetFilters);
+document.getElementById('stateSelect').addEventListener('change', () => {
+  updateCountySelect();
+  document.getElementById('countySelect').value = '';
+  updateCitySelect();
+  document.getElementById('citySelect').value = '';
+  applyFilters();
+});
+document.getElementById('countySelect').addEventListener('change', () => {
+  updateCitySelect();
+  document.getElementById('citySelect').value = '';
+  applyFilters();
+});
+document.getElementById('citySelect').addEventListener('change', applyFilters);
+document.getElementById('locationTypeSelect').addEventListener('change', applyFilters);
+document.getElementById('shapeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilters(); });
+document.getElementById('searchBox').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilters(); });
+['toggleParks','toggleForests','toggleBases','toggleCaves','toggleRivers'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+document.querySelectorAll('input[name="viewmode"]').forEach(el => el.addEventListener('change', applyFilters));
+map.on('zoomend', renderLayers);
+
+Papa.parse('paranormal_master_dataset_v6_states_counties_normalized.csv', {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: (results) => initFromCsv(results.data),
+  error: () => {
+    document.getElementById('loading').textContent = 'Failed to load CSV. Make sure the CSV is in the same folder as index.html.';
+  }
+});
+</script>
+</body>
+</html>
