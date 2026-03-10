@@ -38,7 +38,7 @@ L.tileLayer(
 {attribution:"©OpenStreetMap"}
 ).addTo(map)
 
-fetch("https://raw.githubusercontent.com/gist/ty-supernatural-data/main/sightings.json")
+fetch("supernatural_intel_v17.json")
 .then(r=>r.json())
 .then(data=>{
 
