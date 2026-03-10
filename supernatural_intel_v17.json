@@ -1,0 +1,41 @@
+{
+  "hexes": [
+    {
+      "id": "HX-1",
+      "polygon": [
+        [47.0, -121.5],
+        [47.1, -121.4],
+        [47.2, -121.5],
+        [47.2, -121.7],
+        [47.1, -121.8],
+        [47.0, -121.7]
+      ],
+      "total": 14,
+      "bigfoot": 10,
+      "ufo": 2,
+      "haunted": 2,
+      "dominant": "bigfoot",
+      "top_state": "Washington",
+      "top_year": 1997
+    },
+    {
+      "id": "HX-2",
+      "polygon": [
+        [40.7, -74.1],
+        [40.8, -74.0],
+        [40.9, -74.1],
+        [40.9, -74.3],
+        [40.8, -74.4],
+        [40.7, -74.3]
+      ],
+      "total": 6,
+      "bigfoot": 0,
+      "ufo": 5,
+      "haunted": 1,
+      "dominant": "ufo",
+      "top_state": "New York",
+      "top_year": 1984
+    }
+  ],
+  "details": []
+}
