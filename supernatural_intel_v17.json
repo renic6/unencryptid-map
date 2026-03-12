@@ -1,40 +1,9 @@
 {
-  "hexes": [
-    {
-      "id": "HX-1",
-      "polygon": [
-        [47.0, -121.5],
-        [47.1, -121.4],
-        [47.2, -121.5],
-        [47.2, -121.7],
-        [47.1, -121.8],
-        [47.0, -121.7]
-      ],
-      "total": 14,
-      "bigfoot": 10,
-      "ufo": 2,
-      "haunted": 2,
-      "dominant": "bigfoot",
-      "top_state": "Washington",
-      "top_year": 1997
-    },
-    {
-      "id": "HX-2",
-      "polygon": [
-        [40.7, -74.1],
-        [40.8, -74.0],
-        [40.9, -74.1],
-        [40.9, -74.3],
-        [40.8, -74.4],
-        [40.7, -74.3]
-      ],
-      "total": 6,
-      "bigfoot": 0,
-      "ufo": 5,
-      "haunted": 1,
-      "dominant": "ufo",
-      "top_state": "New York",
-      "top_year": 1984
-    }
-  ]
+"hexes":[
+{"id":"HX1","polygon":[[47,-121.5],[47.2,-121.4],[47.3,-121.6],[47.2,-121.8],[47,-121.7],[46.9,-121.6]],"total":14,"bigfoot":10,"ufo":3,"haunted":1,"dominant":"bigfoot","top_state":"Washington","top_year":1997},
+{"id":"HX2","polygon":[[44.4,-122.6],[44.6,-122.5],[44.7,-122.7],[44.6,-122.9],[44.4,-122.8],[44.3,-122.7]],"total":11,"bigfoot":9,"ufo":1,"haunted":1,"dominant":"bigfoot","top_state":"Oregon","top_year":2001},
+{"id":"HX3","polygon":[[40.7,-74.1],[40.9,-74.0],[41.0,-74.2],[40.9,-74.4],[40.7,-74.3],[40.6,-74.2]],"total":6,"bigfoot":0,"ufo":5,"haunted":1,"dominant":"ufo","top_state":"New York","top_year":1984},
+{"id":"HX4","polygon":[[33.3,-111.7],[33.5,-111.6],[33.6,-111.8],[33.5,-112.0],[33.3,-111.9],[33.2,-111.8]],"total":8,"bigfoot":2,"ufo":4,"haunted":2,"dominant":"ufo","top_state":"Arizona","top_year":1995},
+{"id":"HX5","polygon":[[37.7,-119.6],[37.9,-119.5],[38.0,-119.7],[37.9,-119.9],[37.7,-119.8],[37.6,-119.7]],"total":13,"bigfoot":11,"ufo":1,"haunted":1,"dominant":"bigfoot","top_state":"California","top_year":1978}
+]
 }
