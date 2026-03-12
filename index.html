@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bigfoot Field Research Database</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Oswald:wght@300;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root {
+      --ink: #1a140d;
+      --paper: #f5ede0;
+      --aged: #e8d8c0;
+      --rust: #8b3a1a;
+      --moss: #3d5a2e;
+      --shadow: #2c1f0e;
+      --highlight: #c4862a;
+      --muted: #7a6a56;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'Courier Prime', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    header {
+      background: linear-gradient(180deg, #0d0a06 0%, #1a140d 100%);
+      border-bottom: 2px solid var(--rust);
+      padding: 2rem 2rem 1.5rem;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--highlight);
+      opacity: 0.3;
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .eyebrow {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 300;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--highlight);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    h1 {
+      font-family: 'Special Elite', cursive;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      color: var(--paper);
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    h1 span {
+      color: var(--rust);
+    }
+
+    .subtitle {
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-pills {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .pill {
+      text-align: center;
+      border: 1px solid rgba(196,134,42,0.3);
+      padding: 0.5rem 1rem;
+      background: rgba(196,134,42,0.05);
+    }
+
+    .pill-num {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 500;
+      color: var(--highlight);
+      display: block;
+    }
+
+    .pill-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: calc(100vh - 120px);
+      max-height: 900px;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      background: #120e09;
+      border-right: 1px solid rgba(139,58,26,0.4);
+      overflow-y: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: #0d0a06; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--rust); }
+
+    .filter-section {
+      border: 1px solid rgba(139,58,26,0.25);
+      padding: 0.9rem;
+    }
+
+    .filter-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--highlight);
+      margin-bottom: 0.7rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(139,58,26,0.3);
+    }
+
+    select, input[type=range] {
+      background: #0d0a06;
+      border: 1px solid rgba(139,58,26,0.4);
+      color: var(--paper);
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.8rem;
+      padding: 0.4rem 0.6rem;
+      width: 100%;
+      appearance: none;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:hover, select:focus {
+      border-color: var(--highlight);
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .chip {
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid rgba(139,58,26,0.35);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .chip:hover { border-color: var(--highlight); color: var(--paper); }
+    .chip.active { background: var(--rust); border-color: var(--rust); color: var(--paper); }
+
+    .year-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .year-val {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      color: var(--highlight);
+      min-width: 2.5rem;
+    }
+
+    input[type=range] {
+      padding: 0;
+      height: 3px;
+      cursor: pointer;
+      accent-color: var(--rust);
+    }
+
+    .results-count {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-top: 1px solid rgba(139,58,26,0.25);
+      padding-top: 0.75rem;
+    }
+
+    .results-count strong {
+      color: var(--highlight);
+      font-size: 1.1rem;
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: transparent;
+      border: 1px solid rgba(139,58,26,0.4);
+      color: var(--muted);
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      transition: all 0.15s;
+    }
+
+    .reset-btn:hover {
+      border-color: var(--rust);
+      color: var(--paper);
+    }
+
+    /* MAIN AREA */
+    .main {
+      display: grid;
+      grid-template-rows: 1fr 220px;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #0d0a06;
+    }
+
+    /* Custom Leaflet dark tiles */
+    .leaflet-container {
+      background: #0d0a06 !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #1a140d;
+      color: var(--paper);
+      border: 1px solid var(--rust);
+      border-radius: 0;
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.8rem;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+    }
+
+    .leaflet-popup-tip { background: #1a140d; }
+    .leaflet-popup-close-button { color: var(--muted) !important; }
+
+    .popup-name {
+      font-family: 'Special Elite', cursive;
+      font-size: 1rem;
+      color: var(--highlight);
+      margin-bottom: 0.4rem;
+    }
+
+    .popup-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.2rem 0.6rem;
+    }
+
+    .popup-label { color: var(--muted); }
+    .popup-val { color: var(--paper); }
+
+    .popup-link {
+      display: inline-block;
+      margin-top: 0.5rem;
+      color: var(--highlight);
+      font-size: 0.75rem;
+      text-decoration: none;
+    }
+
+    .popup-link:hover { text-decoration: underline; }
+
+    /* CHARTS ROW */
+    .charts-row {
+      background: #0d0a06;
+      border-top: 1px solid rgba(139,58,26,0.4);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      overflow: hidden;
+    }
+
+    .chart-panel {
+      border-right: 1px solid rgba(139,58,26,0.2);
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chart-panel:last-child { border-right: none; }
+
+    .chart-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--highlight);
+      margin-bottom: 0.5rem;
+    }
+
+    .bar-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      overflow: hidden;
+    }
+
+    .bar-item {
+      display: grid;
+      grid-template-columns: 80px 1fr 30px;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.65rem;
+    }
+
+    .bar-name {
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-track {
+      height: 6px;
+      background: rgba(139,58,26,0.15);
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--rust);
+      transition: width 0.4s ease;
+    }
+
+    .bar-count {
+      color: var(--muted);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Loading overlay */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      gap: 1rem;
+    }
+
+    .loading-text {
+      font-family: 'Special Elite', cursive;
+      font-size: 1.4rem;
+      color: var(--paper);
+      letter-spacing: 0.1em;
+    }
+
+    .loading-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      animation: blink 1.2s infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .loader-bar {
+      width: 200px;
+      height: 2px;
+      background: rgba(139,58,26,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loader-bar::after {
+      content: '';
+      position: absolute;
+      height: 100%;
+      width: 40%;
+      background: var(--rust);
+      animation: slide 1s infinite ease-in-out;
+    }
+
+    @keyframes slide {
+      0% { left: -40%; }
+      100% { left: 100%; }
+    }
+
+    /* Marker cluster */
+    .custom-marker {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--rust);
+      border: 2px solid var(--highlight);
+      opacity: 0.85;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: 50vh auto; }
+      .main { grid-template-rows: 1fr; }
+      .charts-row { display: none; }
+      .sidebar { max-height: 300px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-text">⬛ BIGFOOT FIELD DATABASE</div>
+  <div class="loader-bar"></div>
+  <div class="loading-sub">Loading 4,057 sighting records...</div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="eyebrow">⬛ Cryptid Research Archive · North America</div>
+      <h1>Bigfoot <span>Field</span> Database</h1>
+      <div class="subtitle">4,057 documented encounters · 1850–2021 · All 50 States</div>
+    </div>
+    <div class="stat-pills">
+      <div class="pill"><span class="pill-num" id="stat-total">4,057</span><span class="pill-label">Sightings</span></div>
+      <div class="pill"><span class="pill-num" id="stat-states">50</span><span class="pill-label">States</span></div>
+      <div class="pill"><span class="pill-num" id="stat-years">171</span><span class="pill-label">Year Span</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+
+    <div class="filter-section">
+      <div class="filter-title">State</div>
+      <select id="filter-state">
+        <option value="">All States</option>
+      </select>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-title">Environment</div>
+      <div class="chip-group" id="filter-env"></div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-title">Encounter Type</div>
+      <div class="chip-group" id="filter-type"></div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-title">Year Range</div>
+      <div class="year-row">
+        <span class="year-val" id="year-from-val">1850</span>
+        <input type="range" id="year-from" min="1850" max="2021" value="1850" step="1">
+      </div>
+      <div class="year-row">
+        <span class="year-val" id="year-to-val">2021</span>
+        <input type="range" id="year-to" min="1850" max="2021" value="2021" step="1">
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-title">Time of Day</div>
+      <div class="chip-group" id="filter-tod"></div>
+    </div>
+
+    <div class="results-count">
+      Showing <strong id="count-display">4,057</strong> sightings
+    </div>
+
+    <button class="reset-btn" id="reset-btn">[ CLEAR ALL FILTERS ]</button>
+
+  </aside>
+
+  <div class="main">
+    <div id="map"></div>
+    <div class="charts-row">
+      <div class="chart-panel">
+        <div class="chart-label">Top States</div>
+        <div class="bar-list" id="chart-states"></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-label">By Environment</div>
+        <div class="bar-list" id="chart-env"></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-label">By Encounter Type</div>
+        <div class="bar-list" id="chart-types"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── State ────────────────────────────────────────────────────
+let allRecords = [];
+let filtered = [];
+let markers = [];
+let map, markerLayer;
+
+const filters = {
+  state: '',
+  envs: new Set(),
+  types: new Set(),
+  tods: new Set(),
+  yearFrom: 1850,
+  yearTo: 2021,
+};
+
+// ── Map init ─────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', {
+    center: [39.5, -98.35],
+    zoom: 4,
+    zoomControl: true,
+    attributionControl: false,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd',
+  }).addTo(map);
+
+  markerLayer = L.layerGroup().addTo(map);
+}
+
+// ── Marker icon ───────────────────────────────────────────────
+const iconCache = {};
+function getIcon(type) {
+  if (iconCache[type]) return iconCache[type];
+  const colors = { Visual: '#8b3a1a', Audio: '#3d5a2e', Video: '#c4862a', Tracks: '#5a3a6e', 'Trail Cam': '#2e5a5a', Other: '#5a5a5a' };
+  const c = colors[type] || colors.Other;
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:8px;height:8px;border-radius:50%;background:${c};border:1.5px solid rgba(255,255,255,0.5);box-shadow:0 0 4px ${c}88"></div>`,
+    iconSize: [8, 8],
+    iconAnchor: [4, 4],
+  });
+  iconCache[type] = icon;
+  return icon;
+}
+
+// ── Popup builder ─────────────────────────────────────────────
+function buildPopup(r) {
+  const decode = {
+    i: 'ID', n: 'Name', d: 'Date', s: 'State', co: 'County',
+    e: 'Environment', t: 'Type', w: 'Weather', m: 'Moon Phase',
+    o: 'Time of Day', c: 'Confidence', wc: 'Witnesses',
+    di: 'Distance', du: 'Duration (s)',
+  };
+  const show = ['d', 's', 'co', 'e', 't', 'w', 'o', 'c'];
+  let rows = '';
+  show.forEach(k => {
+    if (r[k]) rows += `<div class="popup-label">${decode[k]}</div><div class="popup-val">${r[k]}</div>`;
+  });
+  const link = r.u ? `<a class="popup-link" href="${r.u}" target="_blank" rel="noopener">▶ Source Video →</a>` : '';
+  return `<div class="popup-name">${r.n || 'Unnamed Sighting #' + r.i}</div>
+          <div class="popup-grid">${rows}</div>${link}`;
+}
+
+// ── Render markers ────────────────────────────────────────────
+function renderMarkers() {
+  markerLayer.clearLayers();
+
+  const MAX_MARKERS = 3000;
+  const toRender = filtered.length > MAX_MARKERS
+    ? filtered.slice().sort(() => Math.random() - 0.5).slice(0, MAX_MARKERS)
+    : filtered;
+
+  toRender.forEach(r => {
+    if (r.a == null || r.g == null) return;
+    const m = L.marker([r.a, r.g], { icon: getIcon(r.t) });
+    m.bindPopup(buildPopup(r), { maxWidth: 280 });
+    markerLayer.addLayer(m);
+  });
+
+  // Update count
+  document.getElementById('count-display').textContent = filtered.length.toLocaleString();
+  document.getElementById('stat-total').textContent = filtered.length.toLocaleString();
+
+  updateCharts();
+}
+
+// ── Filter logic ──────────────────────────────────────────────
+function applyFilters() {
+  filtered = allRecords.filter(r => {
+    if (filters.state && r.s !== filters.state) return false;
+    if (filters.envs.size && !filters.envs.has(r.e)) return false;
+    if (filters.types.size && !filters.types.has(r.t)) return false;
+    if (filters.tods.size && !filters.tods.has(r.o)) return false;
+    if (r.y != null) {
+      if (r.y < filters.yearFrom || r.y > filters.yearTo) return false;
+    }
+    return true;
+  });
+  renderMarkers();
+}
+
+// ── Charts ────────────────────────────────────────────────────
+function buildBarList(containerId, counts, limit = 6) {
+  const el = document.getElementById(containerId);
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit);
+  const max = sorted[0]?.[1] || 1;
+  el.innerHTML = sorted.map(([name, count]) => `
+    <div class="bar-item">
+      <div class="bar-name">${name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(count/max*100).toFixed(1)}%"></div></div>
+      <div class="bar-count">${count.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function updateCharts() {
+  const stateCounts = {}, envCounts = {}, typeCounts = {};
+  filtered.forEach(r => {
+    if (r.s) stateCounts[r.s] = (stateCounts[r.s] || 0) + 1;
+    if (r.e) envCounts[r.e] = (envCounts[r.e] || 0) + 1;
+    if (r.t) typeCounts[r.t] = (typeCounts[r.t] || 0) + 1;
+  });
+  buildBarList('chart-states', stateCounts, 6);
+  buildBarList('chart-env', envCounts, 5);
+  buildBarList('chart-types', typeCounts, 6);
+}
+
+// ── Chip toggle ───────────────────────────────────────────────
+function makeChips(containerId, items, filterSet, onChange) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = items.map(item => `
+    <div class="chip" data-val="${item}">${item}</div>
+  `).join('');
+  container.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const val = chip.dataset.val;
+      if (filterSet.has(val)) {
+        filterSet.delete(val);
+        chip.classList.remove('active');
+      } else {
+        filterSet.add(val);
+        chip.classList.add('active');
+      }
+      onChange();
+    });
+  });
+}
+
+// ── Build UI from meta ────────────────────────────────────────
+function buildUI(meta) {
+  // State select
+  const stateEl = document.getElementById('filter-state');
+  meta.states.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    stateEl.appendChild(opt);
+  });
+  stateEl.addEventListener('change', e => { filters.state = e.target.value; applyFilters(); });
+
+  // Env chips
+  makeChips('filter-env', meta.environments, filters.envs, applyFilters);
+
+  // Type chips
+  makeChips('filter-type', meta.types, filters.types, applyFilters);
+
+  // Time of day chips
+  const tods = ['Morning', 'Afternoon', 'Dusk', 'Night', 'Dawn', 'Overnight'];
+  makeChips('filter-tod', tods, filters.tods, applyFilters);
+
+  // Year sliders
+  const fromEl = document.getElementById('year-from');
+  const toEl = document.getElementById('year-to');
+  const fromVal = document.getElementById('year-from-val');
+  const toVal = document.getElementById('year-to-val');
+
+  fromEl.min = toEl.min = meta.yearMin;
+  fromEl.max = toEl.max = meta.yearMax;
+  fromEl.value = meta.yearMin;
+  toEl.value = meta.yearMax;
+  fromVal.textContent = meta.yearMin;
+  toVal.textContent = meta.yearMax;
+  filters.yearFrom = meta.yearMin;
+  filters.yearTo = meta.yearMax;
+
+  fromEl.addEventListener('input', () => {
+    if (+fromEl.value > +toEl.value) fromEl.value = toEl.value;
+    fromVal.textContent = fromEl.value;
+    filters.yearFrom = +fromEl.value;
+    applyFilters();
+  });
+  toEl.addEventListener('input', () => {
+    if (+toEl.value < +fromEl.value) toEl.value = fromEl.value;
+    toVal.textContent = toEl.value;
+    filters.yearTo = +toEl.value;
+    applyFilters();
+  });
+
+  // Reset
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    filters.state = '';
+    filters.envs.clear();
+    filters.types.clear();
+    filters.tods.clear();
+    filters.yearFrom = meta.yearMin;
+    filters.yearTo = meta.yearMax;
+    stateEl.value = '';
+    fromEl.value = meta.yearMin; fromVal.textContent = meta.yearMin;
+    toEl.value = meta.yearMax; toVal.textContent = meta.yearMax;
+    document.querySelectorAll('.chip.active').forEach(c => c.classList.remove('active'));
+    applyFilters();
+  });
+
+  // Header stats
+  document.getElementById('stat-states').textContent = meta.states.length;
+  document.getElementById('stat-years').textContent = meta.yearMax - meta.yearMin;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────
+async function init() {
+  initMap();
+
+  try {
+    const res = await fetch('data.json');
+    const data = await res.json();
+    allRecords = data.records;
+    filtered = allRecords;
+
+    buildUI(data.meta);
+    renderMarkers();
+
+    document.getElementById('loading').style.display = 'none';
+  } catch (err) {
+    document.querySelector('.loading-sub').textContent = 'Error loading data: ' + err.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
